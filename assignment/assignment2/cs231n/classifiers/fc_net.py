@@ -47,7 +47,10 @@ class TwoLayerNet(object):
         # and biases using the keys 'W1' and 'b1' and second layer                 #
         # weights and biases using the keys 'W2' and 'b2'.                         #
         ############################################################################
-        pass
+        self.params['W1'] = np.random.normal(0.0, weight_scale, (input_dim, hidden_dim))
+        self.params['b1'] = np.zeros(hidden_dim)
+        self.params['W2'] = np.random.normal(0.0, weight_scale, (hidden_dim, num_classes))
+        self.params['b2'] = np.zeros(num_classes)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -77,7 +80,15 @@ class TwoLayerNet(object):
         # TODO: Implement the forward pass for the two-layer net, computing the    #
         # class scores for X and storing them in the scores variable.              #
         ############################################################################
-        pass
+        W1 = self.params['W1']
+        b1 = self.params['b1']
+        s1, cache1 = affine_relu_forward(X, W1, b1)
+        
+        W2 = self.params['W2']
+        b2 = self.params['b2']
+        scores, cache2 = affine_forward(s1, W2, b2)
+        
+        
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -97,7 +108,39 @@ class TwoLayerNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
-        pass
+        # softmax
+        scores = np.exp(scores)
+        scores_sum = np.sum(scores, axis=1).reshape(-1,1)
+        scores /= scores_sum
+        correct_scores = scores[np.arange(X.shape[0]), y].reshape(-1,1)
+        loss = -np.log(correct_scores).sum()
+        loss /= X.shape[0]
+    
+        # 正则化项
+        loss += self.reg*np.sum(W1*W1) + 0.5*self.reg*np.sum(W2*W2)
+        
+        # 梯度
+        ds = np.copy(scores)
+        ds[np.arange(X.shape[0]), y] = -(1-scores[np.arange(X.shape[0]), y])
+        ds /= X.shape[0]
+        dW2 = np.dot(s1.T, ds)
+        dW2 += self.reg * W2
+        grads['W2'] = dW2
+    
+        db2 = np.dot(np.ones((1, X.shape[0])), ds).reshape(-1,)
+        grads['b2'] = db2
+        
+        
+        _, grads['W1'], grads['b1'] = affine_relu_backward(ds, cache1)
+        
+#         dscore = np.dot(ds, W2.T) 
+#         dscore *= cache1
+#         dW1 = np.dot(X.T, dscore)
+#         dW1 += 2 * reg * W1
+#         grads['W1'] = dW1
+    
+#         db1 = np.dot(np.ones((1, X.shape[0])), dscore).reshape(-1,)
+#         grads['b1'] = db1
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
