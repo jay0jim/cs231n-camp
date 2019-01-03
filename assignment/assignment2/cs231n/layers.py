@@ -60,16 +60,16 @@ def affine_backward(dout, cache):
     # TODO: Implement the affine backward pass.                               #
     ###########################################################################
     shape = x.shape
-    print(shape)
+#     print(shape)
     dx = np.dot(dout, w.T).reshape(shape)
-    print(dx.shape)
+#     print(dx.shape)
     
     x_reshape = x.reshape(x.shape[0], -1)
     dw = np.dot(x_reshape.T, dout)
-    print(dw.shape)
+#     print(dw.shape)
     
     db = np.dot(np.ones(shape[0]), dout).reshape(b.shape)
-    print(db.shape)
+#     print(db.shape)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################

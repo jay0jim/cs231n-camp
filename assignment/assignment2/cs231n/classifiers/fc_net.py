@@ -117,7 +117,7 @@ class TwoLayerNet(object):
         loss /= X.shape[0]
     
         # 正则化项
-        loss += self.reg*np.sum(W1*W1) + 0.5*self.reg*np.sum(W2*W2)
+        loss += 0.5*self.reg*np.sum(W1*W1) + 0.5*self.reg*np.sum(W2*W2)
         
         # 梯度
         ds = np.copy(scores)
@@ -130,8 +130,10 @@ class TwoLayerNet(object):
         db2 = np.dot(np.ones((1, X.shape[0])), ds).reshape(-1,)
         grads['b2'] = db2
         
-        
-        _, grads['W1'], grads['b1'] = affine_relu_backward(ds, cache1)
+        dout = np.dot(ds, W2.T)
+        _, dW1, grads['b1'] = affine_relu_backward(dout, cache1)
+        dW1 += self.reg * W1
+        grads['W1'] = dW1
         
 #         dscore = np.dot(ds, W2.T) 
 #         dscore *= cache1
@@ -207,7 +209,20 @@ class FullyConnectedNet(object):
         # beta2, etc. Scale parameters should be initialized to ones and shift     #
         # parameters should be initialized to zeros.                               #
         ############################################################################
-        pass
+        for i in range(self.num_layers-1):
+            if i == 0:
+                self.params['W%s'%(i+1)] = np.random.normal(0, weight_scale, size=(input_dim, hidden_dims[i]))
+                self.params['b%s'%(i+1)] = np.zeros(hidden_dims[i])
+                
+            else:
+                self.params['W%s'%(i+1)] = np.random.normal(0, weight_scale, size=(hidden_dims[i-1], hidden_dims[i]))
+                self.params['b%s'%(i+1)] = np.zeros(hidden_dims[i])
+                
+        self.params['W%s'%(self.num_layers)] = np.random.normal(0, weight_scale, size=(hidden_dims[-1], num_classes))
+        self.params['b%s'%(self.num_layers)] = np.zeros(num_classes)
+        
+#         for k,v in self.params.items():
+#             print(k, v.shape)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -266,7 +281,41 @@ class FullyConnectedNet(object):
         # self.bn_params[1] to the forward pass for the second batch normalization #
         # layer, etc.                                                              #
         ############################################################################
-        pass
+#         W1 = self.params['W1']
+#         b1 = self.params['b1']
+#         s1, cache1 = affine_relu_forward(X, W1, b1)
+        
+#         W2 = self.params['W2']
+#         b2 = self.params['b2']
+#         scores, cache2 = affine_forward(s1, W2, b2)
+        
+#         print(self.num_layers)
+#         print(self.params.keys())
+        # 前L-1层
+        Wi = []
+        bi = []
+        si = []
+        cachei = []
+        s = X
+        for i in range(self.num_layers-1):
+            W = self.params['W%s'%(i+1)]
+            b = self.params['b%s'%(i+1)]
+            s, cache = affine_relu_forward(s, W, b)
+            Wi.append(W)
+            bi.append(b)
+            si.append(s)
+            cachei.append(cache)
+            
+        
+        # 最后一层
+        W = self.params['W%s'%(self.num_layers)]
+        b = self.params['b%s'%(self.num_layers)]
+        s = si[-1]
+        scores, cache = affine_forward(s, W, b)
+        Wi.append(W)
+        bi.append(b)
+        si.append(scores)
+        cachei.append(cache)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -289,7 +338,61 @@ class FullyConnectedNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
-        pass
+        # softmax
+        scores = np.exp(scores)
+        scores_sum = np.sum(scores, axis=1).reshape(-1,1)
+        scores /= scores_sum
+        correct_scores = scores[np.arange(X.shape[0]), y].reshape(-1,1)
+        loss = -np.log(correct_scores).sum()
+        loss /= X.shape[0]
+    
+        # 正则化项
+        for i in range(self.num_layers):
+            W = Wi[i]
+            loss += 0.5 * self.reg * np.sum(W*W)    
+#         loss += 0.5*self.reg*np.sum(W1*W1) + 0.5*self.reg*np.sum(W2*W2)
+
+        ds = np.copy(scores)
+        ds[np.arange(X.shape[0]), y] = -(1-scores[np.arange(X.shape[0]), y])
+        ds /= X.shape[0]
+        
+        # 带softmax的梯度
+        s = si[-2]
+        W = Wi[-1]
+        dW = np.dot(s.T, ds)
+        dW += self.reg * W
+        grads['W%s'%(self.num_layers)] = dW
+        
+        db = np.dot(np.ones((1, X.shape[0])), ds).reshape(-1,)
+        grads['b%s'%(self.num_layers)] = db
+        
+        ds = np.dot(ds, W.T)
+        
+        # 其余梯度
+        for i in range(self.num_layers-1, 0, -1):
+            W = Wi[i-1]
+            _, dW, db = affine_relu_backward(ds, cachei[i-1])
+            dW += self.reg * W
+            grads['W%s'%i] = dW
+            grads['b%s'%i] = db
+            ds = np.dot(ds, W.T)
+   
+        
+#         # 梯度
+#         ds = np.copy(scores)
+#         ds[np.arange(X.shape[0]), y] = -(1-scores[np.arange(X.shape[0]), y])
+#         ds /= X.shape[0]
+#         dW2 = np.dot(s1.T, ds)
+#         dW2 += self.reg * W2
+#         grads['W2'] = dW2
+    
+#         db2 = np.dot(np.ones((1, X.shape[0])), ds).reshape(-1,)
+#         grads['b2'] = db2
+        
+#         dout = np.dot(ds, W2.T)
+#         _, dW1, grads['b1'] = affine_relu_backward(dout, cache1)
+#         dW1 += self.reg * W1
+#         grads['W1'] = dW1
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
