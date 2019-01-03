@@ -371,11 +371,11 @@ class FullyConnectedNet(object):
         # 其余梯度
         for i in range(self.num_layers-1, 0, -1):
             W = Wi[i-1]
-            _, dW, db = affine_relu_backward(ds, cachei[i-1])
+            ds, dW, db = affine_relu_backward(ds, cachei[i-1])
             dW += self.reg * W
             grads['W%s'%i] = dW
             grads['b%s'%i] = db
-            ds = np.dot(ds, W.T)
+#             ds = np.dot(ds, W.T)
    
         
 #         # 梯度
